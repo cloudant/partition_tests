@@ -44,7 +44,7 @@ defmodule SearchPartitionTest do
     Enum.map(rows, fn row -> row["id"] end)
   end
 
-  @tag :with_partition_db
+  @tag :with_partitioned_db
   test "Simple query returns partitioned search results", context do
     db_name = context[:db_name]
     create_docs(db_name)
@@ -63,6 +63,37 @@ defmodule SearchPartitionTest do
     assert ids == ["bar:1", "bar:3", "bar:5", "bar:7", "bar:9"]
   end
 
+  @tag :with_partitioned_db
+  test "Works with bookmarks and limit", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name)
+
+    url = "/#{db_name}/_design/library/_search/books"
+    resp = Couch.get(url, query: %{q: "some:field", partition: "foo", limit: 3})
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert ids == ["foo:10", "foo:2", "foo:4"] 
+
+    %{:body => %{"bookmark" => bookmark}} = resp
+    
+    resp = Couch.get(url, query: %{q: "some:field", partition: "foo", limit: 3, bookmark: bookmark})
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert ids = ["foo:6", "foo:8"]
+  end
+
+  @tag :with_partitioned_db
+  test "Cannot do global query with partition view", context do 
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name)
+
+    url = "/#{db_name}/_design/library/_search/books"
+    resp = Couch.get(url, query: %{q: "some:field"})
+    assert resp.status_code != 200
+  end
+
   @tag :with_db
   test "normal search on non-partitioned dbs still work", context do
     db_name = context[:db_name]
@@ -76,14 +107,17 @@ defmodule SearchPartitionTest do
     assert ids == ["bar:1", "bar:5", "bar:9", "foo:2", "bar:3", "foo:4", "foo:6", "bar:7", "foo:8", "foo:10"]
   end
 
-  @tag :with_partition_db
+  @tag :with_partitioned_db
   test "All restricted paramters are not allowed", context do
     db_name = context[:db_name]
     create_docs(db_name)
     create_ddoc(db_name)
     Enum.each([
         {:include_docs, true}, 
-        {:counts, "[\"type\"]"}
+        {:counts, "[\"type\"]"},
+        {:group_field, "some"},
+        {:ranges, :jiffy.encode(%{price: %{cheap: "[0 TO 100]"}})},
+        {:drilldown, "[\"key\",\"a\"]"}
       ], 
       fn ({key, value}) ->
       url = "/#{db_name}/_design/library/_search/books"

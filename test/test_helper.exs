@@ -31,25 +31,22 @@ defmodule CouchTestCase do
             context
             |> Map.put(:db_name, random_db_name(db_name))
             |> Map.put(:with_db, true)
+          %{:with_partitioned_db => true} ->
+            context
+            |> Map.put(:db_name, random_db_name())
+            |> Map.put(:query, %{partitioned: true})
+            |> Map.put(:with_db, true)
           %{:with_db => true} ->
             Map.put(context, :db_name, random_db_name())
           %{:with_db => db_name} when is_binary(db_name) ->
             Map.put(context, :db_name, db_name)
-          %{:with_partition_db => true} ->
             Map.put(context, :db_name, random_db_name())
-          %{:with_partition_db => db_name} when is_binary(db_name) ->
-            Map.put(context, :db_name, db_name)
           _ ->
             context
         end
 
         if Map.has_key? context, :with_db do
-          {:ok, _} = create_db(context[:db_name])
-          on_exit(fn -> delete_db(context[:db_name]) end)
-        end
-
-        if Map.has_key? context, :with_partition_db do
-          {:ok, _} = create_db(context[:db_name], query: %{partitioned: true})
+          {:ok, _} = create_db(context[:db_name], query: context[:query])
           on_exit(fn -> delete_db(context[:db_name]) end)
         end
 
