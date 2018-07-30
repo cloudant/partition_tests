@@ -12,10 +12,18 @@ defmodule ViewPartitionTest do
       else 
         "bar:#{i}" 
       end
+
+      group = if rem(i, 3) == 0 do
+          "one"
+        else
+          "two"
+      end
+
       %{
         :_id => id,
         :value => i,
-        :some => "field"
+        :some => "field",
+        :group => group
       }
     end
 
@@ -40,6 +48,24 @@ defmodule ViewPartitionTest do
     assert Map.has_key?(resp.body, "ok") == true
   end
 
+  def create_reduce_ddoc(db_name, opts \\ %{}) do
+    mapFn = "function(doc) {\n  if (doc.group) {\n    emit([doc.some, doc.group], 1);\n }\n}"
+    default_ddoc = %{
+      views: %{
+        some: %{
+          map: mapFn,
+          reduce: "_count"
+        }
+      }
+    } 
+
+    ddoc = Enum.into(opts, default_ddoc)
+
+    resp = Couch.put("/#{db_name}/_design/mrtest", body: ddoc)
+    assert resp.status_code == 201
+    assert Map.has_key?(resp.body, "ok") == true
+  end
+
   def get_ids(resp) do
     %{:body => %{"rows" => rows}} = resp
     Enum.map(rows, fn row -> row["id"] end)
@@ -51,6 +77,11 @@ defmodule ViewPartitionTest do
       [partition, _] = String.split(row["id"], ":")
       partition
     end)
+  end
+
+  def get_reduce_result (resp) do
+    %{:body => %{"rows" => rows}} = resp
+    rows
   end
 
   def assert_correct_partition(partitions, correct_partition) do
@@ -236,4 +267,146 @@ defmodule ViewPartitionTest do
     end)
   end
 
+  @tag :with_partitioned_db
+  test "query with descending works", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name)
+
+    url = "/#{db_name}/_design/mrtest/_view/some"
+
+    resp = Couch.get(url, query: %{partition: "foo", descending: true, limit: 5})
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert length(ids) == 5
+    assert ids == ["foo:98", "foo:96", "foo:94", "foo:92", "foo:90"]
+
+    resp = Couch.get(url, query: %{partition: "foo", descending: false, limit: 5})
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert length(ids) == 5
+    assert ids == ["foo:10", "foo:100", "foo:12", "foo:14", "foo:16"]
+  end
+
+  @tag :with_partitioned_db
+  test "query with skip works", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name)
+
+    url = "/#{db_name}/_design/mrtest/_view/some"
+
+    resp = Couch.get(url, query: %{partition: "foo", skip: 5, limit: 5})
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert length(ids) == 5
+    assert ids == ["foo:18", "foo:2", "foo:20", "foo:22", "foo:24"]
+  end
+
+  @tag :with_partitioned_db
+  test "query with key works", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name)
+
+    url = "/#{db_name}/_design/mrtest/_view/some"
+
+    resp = Couch.get(url, query: %{partition: "foo", key: "22"})
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert length(ids) == 1
+    assert ids == ["foo:22"]
+  end
+
+  @tag :with_partitioned_db
+  test "query with startkey_docid and endkey_docid", context do
+    mapFn = "function(doc) {\n  if (doc.some) {\n    emit(doc.some);\n }\n}"
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name, views: %{
+      some: %{
+        map: mapFn
+      }
+    })
+
+    url = "/#{db_name}/_design/mrtest/_view/some"
+
+    resp = Couch.get(url, query: %{
+      partition: "foo",
+      startkey: "\"field\"",
+      endkey: "\"field\"",
+      startkey_docid: "18",
+      endkey_docid: "24"
+    })
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert ids == ["foo:18", "foo:2", "foo:20", "foo:22", "foo:24"]
+  end
+
+  @tag :with_partitioned_db
+  test "query with update=false works", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name)
+
+    url = "/#{db_name}/_design/mrtest/_view/some"
+    resp = Couch.get(url, query: %{
+      partition: "foo",
+      update: "true",
+      limit: 3
+    })
+    assert resp.status_code == 200
+
+    resp = Couch.put("/#{db_name}/foo:1", body: %{some: "field"})
+
+    resp = Couch.get(url, query: %{
+      partition: "foo",
+      update: "false",
+      limit: 3
+    })
+    IO.inspect resp
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert ids == ["foo:10", "foo:100", "foo:12"]
+  end
+
+  @tag :with_partitioned_db
+  test "query with reduce works", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_reduce_ddoc(db_name)
+
+    url = "/#{db_name}/_design/mrtest/_view/some"
+    resp = Couch.get(url, query: %{
+      partition: "foo",
+      reduce: true,
+      group_level: 1
+    })
+
+    assert resp.status_code == 200
+    results = get_reduce_result(resp)
+    assert results ==  [%{"key" => ["field"], "value" => 100}]
+
+    resp = Couch.get(url, query: %{
+      partition: "foo",
+      reduce: true,
+      group_level: 2
+    })
+
+    assert results = [
+      %{"key" => ["field", "one"], "value" => 33},
+      %{"key" => ["field", "two"], "value" => 67}
+    ]
+
+    resp = Couch.get(url, query: %{
+      partition: "foo",
+      reduce: true,
+      group: true
+    })
+
+    assert results = [
+      %{"key" => ["field", "one"], "value" => 33},
+      %{"key" => ["field", "two"], "value" => 67}
+    ]
+  end
 end
