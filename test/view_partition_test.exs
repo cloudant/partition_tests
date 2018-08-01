@@ -94,14 +94,16 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name, options: %{partitioned: true})
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.get(url, query: %{partition: "foo"})
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
+    resp = Couch.get(url)
+    IO.inspect resp
     assert resp.status_code == 200
     partitions = get_partitions(resp)
     assert length(partitions) > 0
     assert_correct_partition(partitions, "foo")
 
-    resp = Couch.get(url, query: %{partition: "bar"})
+    url = "/#{db_name}/_partition/bar/_design/mrtest/_view/some"
+    resp = Couch.get(url)
     assert resp.status_code == 200
     partitions = get_partitions(resp)
     assert length(partitions) > 0
@@ -114,14 +116,15 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.get(url, query: %{partition: "foo"})
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
+    resp = Couch.get(url)
     assert resp.status_code == 200
     partitions = get_partitions(resp)
     assert length(partitions) > 0
     assert_correct_partition(partitions, "foo")
 
-    resp = Couch.get(url, query: %{partition: "bar"})
+    url = "/#{db_name}/_partition/bar/_design/mrtest/_view/some"
+    resp = Couch.get(url)
     assert resp.status_code == 200
     partitions = get_partitions(resp)
     assert length(partitions) > 0
@@ -142,14 +145,43 @@ defmodule ViewPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "query errors if illegal partitionkey supplied", context do
+  test "query errors with in correct partitionkeys supplied", context do
     db_name = context[:db_name]
-    create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.get(url, query: %{partition: "_bar"})
+    url = "/#{db_name}/_partition/_bar/_design/mrtest/_view/some"
+    resp = Couch.get(url)
     assert resp.status_code == 400
+
+    url = "/#{db_name}/_partition//_design/mrtest/_view/some"
+    resp = Couch.get(url)
+    assert resp.status_code == 400
+
+    url = "/#{db_name}/_partition/%20/_design/mrtest/_view/some"
+    resp = Couch.get(url)
+    assert resp.status_code == 400
+  end
+
+  @tag :with_partitioned_db
+  test "query errors if restricted params used", context do
+    db_name = context[:db_name]
+    create_ddoc(db_name)
+
+    Enum.each([
+      {:include_docs, true}, 
+      {:conflicts, true},
+      {:stable, true}
+    ], 
+      fn ({key, value}) ->
+      query =  %{}
+      query = Map.put(query, key, value)
+      url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
+      resp = Couch.get(url, query: query)
+      assert resp.status_code == 400
+      %{:body => body} = Couch.get(url, query: query)
+      assert body["reason"] === "#{key} is not allowed for a partition query"
+
+    end)
   end
 
   @tag :with_partitioned_db
@@ -158,8 +190,8 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.get(url, query: %{partition: "foo", startkey: "1", endkey: "9"})
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
+    resp = Couch.get(url, query: %{startkey: "1", endkey: "9"})
     assert resp.status_code == 200
     partitions = get_partitions(resp)
     assert length(partitions) > 9
@@ -172,9 +204,8 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.get(url, body: %{partition: "foo", startkey: "foo:1", endkey: "foo:9"})
-    IO.inspect resp
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
+    resp = Couch.get(url, body: %{startkey: "foo:1", endkey: "foo:9"})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 0
@@ -186,8 +217,8 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.post(url, query: %{partition: "foo"}, body: %{keys: ["2", "4", "6"]})
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
+    resp = Couch.post(url, body: %{keys: ["2", "4", "6"]})
     IO.inspect resp
     assert resp.status_code == 200
     ids = get_ids(resp)
@@ -201,7 +232,7 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
     resp = Couch.post(url, query: %{partition: "bar"}, body: %{keys: ["foo:2", "foo:4", "foo:6"]})
     ids = get_ids(resp)
     assert length(ids) == 0
@@ -228,9 +259,9 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
 
-    resp = Couch.get(url, query: %{partition: "foo", limit: 5})
+    resp = Couch.get(url, query: %{limit: 5, partition: "foo"})
     assert resp.status_code == 200
     partitions = get_partitions(resp)
     assert length(partitions) == 5
@@ -238,33 +269,15 @@ defmodule ViewPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "query works", context do
+  test "query with partition in query string fails", context do
     db_name = context[:db_name]
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
 
-    resp = Couch.get(url, query: %{partition: "foo", limit: 5})
-    assert resp.status_code == 200
-    partitions = get_partitions(resp)
-    assert length(partitions) == 5
-    assert_correct_partition(partitions, "foo")
-  end
-
-  @tag :with_partitioned_db
-  test "cannot add following to partitioned design doc", context do
-    db_name = context[:db_name]
-
-    Enum.each([
-      :rewrites, :lists, :shows, :updates, :filters, :validate_doc_update
-      ], fn (option) ->
-      ddoc = %{} 
-      ddoc = Map.put(ddoc, option, "this doesn't need to be valid js for the test")
-
-      resp = Couch.put("/#{db_name}/_design/optionstest", body: ddoc)
-      assert resp.status_code == 400
-    end)
+    resp = Couch.get(url, query: %{partition: "foo"})
+    assert resp.status_code == 400
   end
 
   @tag :with_partitioned_db
@@ -273,15 +286,15 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
 
-    resp = Couch.get(url, query: %{partition: "foo", descending: true, limit: 5})
+    resp = Couch.get(url, query: %{descending: true, limit: 5})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 5
     assert ids == ["foo:98", "foo:96", "foo:94", "foo:92", "foo:90"]
 
-    resp = Couch.get(url, query: %{partition: "foo", descending: false, limit: 5})
+    resp = Couch.get(url, query: %{descending: false, limit: 5})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 5
@@ -294,9 +307,9 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
 
-    resp = Couch.get(url, query: %{partition: "foo", skip: 5, limit: 5})
+    resp = Couch.get(url, query: %{skip: 5, limit: 5})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 5
@@ -309,9 +322,9 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
 
-    resp = Couch.get(url, query: %{partition: "foo", key: "22"})
+    resp = Couch.get(url, query: %{key: "22"})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 1
@@ -329,10 +342,9 @@ defmodule ViewPartitionTest do
       }
     })
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
 
     resp = Couch.get(url, query: %{
-      partition: "foo",
       startkey: "\"field\"",
       endkey: "\"field\"",
       startkey_docid: "18",
@@ -349,9 +361,8 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
     resp = Couch.get(url, query: %{
-      partition: "foo",
       update: "true",
       limit: 3
     })
@@ -360,11 +371,9 @@ defmodule ViewPartitionTest do
     resp = Couch.put("/#{db_name}/foo:1", body: %{some: "field"})
 
     resp = Couch.get(url, query: %{
-      partition: "foo",
       update: "false",
       limit: 3
     })
-    IO.inspect resp
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert ids == ["foo:10", "foo:100", "foo:12"]
@@ -376,9 +385,8 @@ defmodule ViewPartitionTest do
     create_docs(db_name)
     create_reduce_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
     resp = Couch.get(url, query: %{
-      partition: "foo",
       reduce: true,
       group_level: 1
     })
