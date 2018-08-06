@@ -124,7 +124,7 @@ defmodule SearchPartitionTest do
       query =  %{q: "some:field", partition: "foo"}
       query = Map.put(query, key, value)
       %{:body => body} = Couch.get(url, query: query)
-      assert body["error"] === "search_partition_error", "Failed for #{key}: #{value}"
+      assert body["error"] === "bad_request", "Failed for #{key}: #{value}"
 
     end)
   end

@@ -2,6 +2,14 @@ defmodule CrudPartitionTest do
   use CouchTestCase
 
   @tag :with_partitioned_db
+  test "Sets partition in db info", context do
+    db_name = context[:db_name]
+    resp = Couch.get("/#{db_name}")
+    %{body: body} = resp
+    assert body["props"] == %{"partitioned" => true}
+  end
+
+  @tag :with_partitioned_db
   test "PUT and GET document", context do
     db_name = context[:db_name]
     id = "my-partition:doc"
