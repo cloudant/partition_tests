@@ -4,13 +4,12 @@ defmodule ViewPartitionTest do
   @moduledoc """
   Test Partition functionality for all_docs
   """
-
-  def create_docs(db_name) do
+  def create_docs(db_name, pk1 \\ "foo", pk2 \\ "bar") do
     docs = for i <- 1..100 do
-      id = if rem(i, 2) == 0 do 
-        "foo:#{i}" 
-      else 
-        "bar:#{i}" 
+      id = if rem(i, 2) == 0 do
+        "#{pk1}:#{i}"
+      else
+        "#{pk2}:#{i}"
       end
 
       group = if rem(i, 3) == 0 do
@@ -39,7 +38,7 @@ defmodule ViewPartitionTest do
           map: mapFn
         }
       }
-    } 
+    }
 
     ddoc = Enum.into(opts, default_ddoc)
 
@@ -57,7 +56,7 @@ defmodule ViewPartitionTest do
           reduce: "_count"
         }
       }
-    } 
+    }
 
     ddoc = Enum.into(opts, default_ddoc)
 
@@ -73,7 +72,7 @@ defmodule ViewPartitionTest do
 
   def get_partitions(resp) do
     %{:body => %{"rows" => rows}} = resp
-    Enum.map(rows, fn row -> 
+    Enum.map(rows, fn row ->
       [partition, _] = String.split(row["id"], ":")
       partition
     end)
@@ -132,6 +131,33 @@ defmodule ViewPartitionTest do
   end
 
   @tag :with_partitioned_db
+  test "query will not include other docs in shard", context do
+    db_name = context[:db_name]
+    # bar42 will be put in the same shard as foo for q = 8
+    create_docs(db_name, "foo", "bar42")
+    create_ddoc(db_name)
+
+    # url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
+    url = "/#{db_name}/_design/mrtest/_view/some?partition=foo"
+    resp = Couch.get(url)
+    IO.inspect resp
+    assert resp.status_code == 200
+    IO.inspect resp
+    partitions = get_partitions(resp)
+    assert length(partitions) > 0
+    assert_correct_partition(partitions, "foo")
+
+    # url = "/#{db_name}/_partition/bar/_design/mrtest/_view/some"
+    url = "/#{db_name}/_design/mrtest/_view/some?partition=bar42"
+    resp = Couch.get(url)
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) > 0
+    assert_correct_partition(partitions, "bar42")
+  end
+
+
+  @tag :with_partitioned_db
   test "view query returns all docs for global query", context do
     db_name = context[:db_name]
     create_docs(db_name)
@@ -168,10 +194,10 @@ defmodule ViewPartitionTest do
     create_ddoc(db_name)
 
     Enum.each([
-      {:include_docs, true}, 
+      {:include_docs, true},
       {:conflicts, true},
       {:stable, true}
-    ], 
+    ],
       fn ({key, value}) ->
       query =  %{}
       query = Map.put(query, key, value)
