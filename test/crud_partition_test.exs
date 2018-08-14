@@ -32,7 +32,6 @@ defmodule CrudPartitionTest do
     url = "/#{db_name}/#{id}"
 
     resp = Couch.put(url, body: %{partitioned_doc: false})
-    IO.inspect(resp)
     assert resp.status_code == 400
   end
 
