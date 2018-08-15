@@ -31,7 +31,7 @@ defmodule ViewPartitionTest do
   end
 
   def create_ddoc(db_name, opts \\ %{}) do
-    mapFn = "function(doc) {\n  if (doc.some) {\n    emit(doc._id, doc.some);\n }\n}"
+    mapFn = "function(doc) {\n  if (doc.some) {\n    emit(doc.value, doc.some);\n }\n}"
     default_ddoc = %{
       views: %{
         some: %{
@@ -222,24 +222,11 @@ defmodule ViewPartitionTest do
     create_ddoc(db_name)
 
     url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.get(url, query: %{startkey: "1", endkey: "9", partition: "foo"})
+    resp = Couch.get(url, query: %{start_key: 12, end_key: 20, partition: "foo"})
     assert resp.status_code == 200
     partitions = get_partitions(resp)
-    assert length(partitions) > 9
+    assert length(partitions) == 5
     assert_correct_partition(partitions, "foo")
-  end
-
-  @tag :with_partitioned_db
-  test "query should return 0 results if partition key part of startkey/endkey", context do
-    db_name = context[:db_name]
-    create_docs(db_name)
-    create_ddoc(db_name)
-
-    url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.get(url, body: %{startkey: "foo:1", endkey: "foo:9", partition: "foo"})
-    assert resp.status_code == 200
-    ids = get_ids(resp)
-    assert length(ids) == 0
   end
 
   @tag :with_partitioned_db
@@ -249,23 +236,11 @@ defmodule ViewPartitionTest do
     create_ddoc(db_name)
 
     url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.post(url, body: %{keys: ["2", "4", "6"]}, query: %{partition: "foo"})
+    resp = Couch.post(url, body: %{keys: [2, 4, 6]}, query: %{partition: "foo"})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 3
     assert ids == ["foo:2", "foo:4", "foo:6"]
-  end
-
-  @tag :with_partitioned_db
-  test "query should return 0 results with partition key in keys", context do
-    db_name = context[:db_name]
-    create_docs(db_name)
-    create_ddoc(db_name)
-
-    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
-    resp = Couch.post(url, query: %{partition: "bar"}, body: %{keys: ["foo:2", "foo:4", "foo:6"]})
-    ids = get_ids(resp)
-    assert length(ids) == 0
   end
 
   @tag :with_partitioned_db
@@ -276,7 +251,7 @@ defmodule ViewPartitionTest do
 
     url = "/#{db_name}/_design/mrtest/_view/some"
 
-    resp = Couch.post(url, body: %{keys: ["foo:2", "foo:4", "foo:6"]})
+    resp = Couch.post(url, body: %{keys: [2, 4, 6]})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 3
@@ -322,13 +297,13 @@ defmodule ViewPartitionTest do
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 5
-    assert ids == ["foo:98", "foo:96", "foo:94", "foo:92", "foo:90"]
+    assert ids == ["foo:100", "foo:98", "foo:96", "foo:94", "foo:92"]
 
     resp = Couch.get(url, query: %{descending: false, limit: 5, partition: "foo"})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 5
-    assert ids == ["foo:10", "foo:100", "foo:12", "foo:14", "foo:16"]
+    assert ids == ["foo:2", "foo:4", "foo:6", "foo:8", "foo:10"]
   end
 
   @tag :with_partitioned_db
@@ -343,7 +318,7 @@ defmodule ViewPartitionTest do
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 5
-    assert ids == ["foo:18", "foo:2", "foo:20", "foo:22", "foo:24"]
+    assert ids == ["foo:12", "foo:14", "foo:16", "foo:18", "foo:20"]
   end
 
   @tag :with_partitioned_db
@@ -354,7 +329,7 @@ defmodule ViewPartitionTest do
 
     url = "/#{db_name}/_design/mrtest/_view/some"
 
-    resp = Couch.get(url, query: %{key: "22", partition: "foo"})
+    resp = Couch.get(url, query: %{key: 22, partition: "foo"})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 1
@@ -377,8 +352,8 @@ defmodule ViewPartitionTest do
     resp = Couch.get(url, query: %{
       startkey: "\"field\"",
       endkey: "\"field\"",
-      startkey_docid: "18",
-      endkey_docid: "24",
+      startkey_docid: "foo:18",
+      endkey_docid: "foo:24",
       partition: "foo"
     })
     assert resp.status_code == 200
@@ -409,7 +384,7 @@ defmodule ViewPartitionTest do
     })
     assert resp.status_code == 200
     ids = get_ids(resp)
-    assert ids == ["foo:10", "foo:100", "foo:12"]
+    assert ids == ["foo:2", "foo:4", "foo:6"]
   end
 
   @tag :with_partitioned_db
