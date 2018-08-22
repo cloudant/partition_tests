@@ -49,5 +49,20 @@ defmodule DesignDocPartitionTest do
 
   
   @tag :with_partitioned_db
-  test "cannot add a js reduce to a partitioned design doc"
+  test "cannot add a js reduce to a partitioned design doc", context do
+    db_name = context[:db_name]
+    mapFn = "function(doc) {\n  if (doc.some) {\n    emit(doc._id, doc.some);\n }\n}"
+    reduceFn = "function(keys, values) { return sum(values); }"
+    ddoc = %{
+      views: %{
+        some: %{
+          map: mapFn,
+          reduce: reduceFn
+        }
+      }
+    } 
+
+    resp = Couch.put("/#{db_name}/_design/mrtest", body: ddoc)
+    assert resp.status_code == 400
+  end
 end
