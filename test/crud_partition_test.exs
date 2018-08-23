@@ -95,7 +95,7 @@ defmodule CrudPartitionTest do
     url = "/#{db_name}"
     resp = Couch.post("#{url}/_bulk_docs", body: %{:docs => docs} )
     assert resp.status_code == 400
-    assert resp[:body] == error
+    assert Map.get(resp, :body) == error
   end
 
   @tag :with_partitioned_db
@@ -113,7 +113,7 @@ defmodule CrudPartitionTest do
     url = "/#{db_name}"
     resp = Couch.post("#{url}/_bulk_docs", body: %{:docs => docs} )
     assert resp.status_code == 400
-    assert resp[:body] == error
+    assert Map.get(resp, :body) == error
   end
 
   @tag :with_partitioned_db
@@ -131,6 +131,6 @@ defmodule CrudPartitionTest do
     url = "/#{db_name}"
     resp = Couch.post("#{url}/_bulk_docs", body: %{:docs => docs} )
     assert resp.status_code == 400
-    assert resp[:body] == error
+    assert Map.get(resp, :body) == error
   end
 end
