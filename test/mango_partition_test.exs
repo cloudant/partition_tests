@@ -59,9 +59,8 @@ defmodule MangoPartitionTest do
     create_docs(db_name)
     create_index(db_name)
 
-    url = "/#{db_name}/_find"
+    url = "/#{db_name}/_partition/foo/_find"
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         some: "field"
       },
@@ -73,9 +72,8 @@ defmodule MangoPartitionTest do
     assert length(partitions) == 20
     assert_correct_partition(partitions, "foo")
 
-    url = "/#{db_name}/_find"
+    url = "/#{db_name}/_partition/bar/_find"
     resp = Couch.post(url, body: %{
-      partition: "bar",
       selector: %{
         some: "field"
       },
@@ -89,13 +87,48 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "query with partitioned:true and $eq using _all_docs", context do
+  test "partition query with partition in body returns 400", context do
     db_name = context[:db_name]
-    create_docs(db_name)
+
+    url = "/#{db_name}/_partition/foo/_find"
+    resp = Couch.post(url, body: %{
+      partition: "foo",
+      selector: %{
+        some: "field"
+      },
+      limit: 20
+    })
+
+    assert resp.status_code == 400
+    %{:body => %{"reason" => reason}} = resp
+    assert Regex.match?(~r/`partition` is not a valid parameter./, reason)
+  end
+
+  @tag :with_partitioned_db
+  test "global query with partition in body returns 400", context do
+    db_name = context[:db_name]
 
     url = "/#{db_name}/_find"
     resp = Couch.post(url, body: %{
       partition: "foo",
+      selector: %{
+        some: "field"
+      },
+      limit: 20
+    })
+
+    assert resp.status_code == 400
+    %{:body => %{"reason" => reason}} = resp
+    assert Regex.match?(~r/`partition` is not a valid parameter./, reason)
+  end
+
+  @tag :with_partitioned_db
+  test "partitioned database query using _all_docs with $eq", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+
+    url = "/#{db_name}/_partition/foo/_find"
+    resp = Couch.post(url, body: %{
       selector: %{
         some: "field"
       },
@@ -107,9 +140,8 @@ defmodule MangoPartitionTest do
     assert length(partitions) == 20
     assert_correct_partition(partitions, "foo")
 
-    url = "/#{db_name}/_find"
+    url = "/#{db_name}/_partition/bar/_find"
     resp = Couch.post(url, body: %{
-      partition: "bar",
       selector: %{
         some: "field"
       },
@@ -123,13 +155,12 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_db
-  test "query with partitioned:false and $eq using _all_docs", context do
+  test "non-partitioned database query using _all_docs and $eq", context do
     db_name = context[:db_name]
     create_docs(db_name)
 
     url = "/#{db_name}/_find"
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         some: "field"
       },
@@ -143,14 +174,13 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "query with partitioned:true using index and range scan", context do
+  test "partitioned database query using index and range scan", context do
     db_name = context[:db_name]
     create_docs(db_name)
     create_index(db_name, ["value"])
 
-    url = "/#{db_name}/_find"
+    url = "/#{db_name}/_partition/foo/_find"
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         value: %{
           "$gte": 6,
@@ -164,8 +194,8 @@ defmodule MangoPartitionTest do
     assert length(partitions) == 5
     assert_correct_partition(partitions, "foo")
 
+    url = "/#{db_name}/_partition/bar/_find"
     resp = Couch.post(url, body: %{
-      partition: "bar",
       selector: %{
         value: %{
           "$gte": 6,
@@ -181,13 +211,13 @@ defmodule MangoPartitionTest do
   end 
 
   @tag :with_partitioned_db
-  test "query with partitioned:true using _all_docs and range scan", context do
+  test "partitioned database query using index and range scan all docs on same shard", context do
     db_name = context[:db_name]
-    create_docs(db_name)
+    create_docs(db_name, "foo", "bar42")
+    create_index(db_name, ["value"])
 
-    url = "/#{db_name}/_find"
+    url = "/#{db_name}/_partition/foo/_find"
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         value: %{
           "$gte": 6,
@@ -201,8 +231,44 @@ defmodule MangoPartitionTest do
     assert length(partitions) == 5
     assert_correct_partition(partitions, "foo")
 
+    url = "/#{db_name}/_partition/bar42/_find"
     resp = Couch.post(url, body: %{
-      partition: "bar",
+      selector: %{
+        value: %{
+          "$gte": 6,
+          "$lt": 16
+        }
+      }
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 5
+    assert_correct_partition(partitions, "bar42")
+  end 
+
+  @tag :with_partitioned_db
+  test "partitioned database query using _all_docs and range scan", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+
+    url = "/#{db_name}/_partition/foo/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        value: %{
+          "$gte": 6,
+          "$lt": 16
+        }
+      }
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 5
+    assert_correct_partition(partitions, "foo")
+
+    url = "/#{db_name}/_partition/bar/_find"
+    resp = Couch.post(url, body: %{
       selector: %{
         value: %{
           "$gte": 6,
@@ -217,6 +283,42 @@ defmodule MangoPartitionTest do
     assert_correct_partition(partitions, "bar")
   end
 
+  @tag :with_partitioned_db
+  test "partitioned database query using _all_docs and range scan all docs on same shard", context do
+    db_name = context[:db_name]
+    create_docs(db_name, "foo", "bar42")
+
+    url = "/#{db_name}/_partition/foo/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        value: %{
+          "$gte": 6,
+          "$lt": 16
+        }
+      }
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 5
+    assert_correct_partition(partitions, "foo")
+
+    url = "/#{db_name}/_partition/bar42/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        value: %{
+          "$gte": 6,
+          "$lt": 16
+        }
+      }
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 5
+    assert_correct_partition(partitions, "bar42")
+  end
+
 
   @tag :with_partitioned_db
   test "explain works with partitions", context do
@@ -224,9 +326,8 @@ defmodule MangoPartitionTest do
     create_docs(db_name)
     create_index(db_name, ["some"])
 
-    url = "/#{db_name}/_explain"
+    url = "/#{db_name}/_partition/foo/_explain"
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         value: %{
           "$gte": 6,
@@ -240,8 +341,8 @@ defmodule MangoPartitionTest do
     assert body["index"]["name"] == "_all_docs"
     assert body["mrargs"]["extra"]["partition"] == "foo"
 
+    url = "/#{db_name}/_partition/bar/_explain"
     resp = Couch.post(url, body: %{
-      partition: "bar",
       selector: %{
         some: "field"
       }
@@ -261,7 +362,6 @@ defmodule MangoPartitionTest do
 
     url = "/#{db_name}/_explain"
     resp = Couch.post(url, body: %{
-      partition: "bar",
       selector: %{
         value: %{
           "$gte": 6,
@@ -276,7 +376,6 @@ defmodule MangoPartitionTest do
     assert Map.has_key?(body["mrargs"]["extra"], "partition") == false
 
     resp = Couch.post(url, body: %{
-      partition: "bar",
       selector: %{
         some: "field"
       }
@@ -289,14 +388,13 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "query with partitioned:true using bookmarks works", context do
+  test "partitioned database query using bookmarks", context do
     db_name = context[:db_name]
     create_docs(db_name)
     create_index(db_name, ["value"])
 
-    url = "/#{db_name}/_find"
+    url = "/#{db_name}/_partition/foo/_find"
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         value: %{
           "$gte": 6,
@@ -314,7 +412,6 @@ defmodule MangoPartitionTest do
     %{:body => %{"bookmark" => bookmark}} = resp
 
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         value: %{
           "$gte": 6,
@@ -332,11 +429,10 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "partition query with r = 3 is rejected", context do
+  test "partition database query with r = 3 is rejected", context do
     db_name = context[:db_name]
-    url = "/#{db_name}/_find"
+    url = "/#{db_name}/_partition/foo/_find"
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         value: %{
           "$gte": 6,
@@ -354,7 +450,6 @@ defmodule MangoPartitionTest do
     db_name = context[:db_name]
     url = "/#{db_name}/_find"
     resp = Couch.post(url, body: %{
-      partition: "foo",
       selector: %{
         value: %{
           "$gte": 6,
@@ -366,4 +461,7 @@ defmodule MangoPartitionTest do
 
     assert resp.status_code == 200
   end
+
+  # Todo:
+  # Add partition true/false to creating index
 end
