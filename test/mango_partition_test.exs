@@ -432,36 +432,135 @@ defmodule MangoPartitionTest do
   test "partition database query with r = 3 is rejected", context do
     db_name = context[:db_name]
     url = "/#{db_name}/_partition/foo/_find"
-    resp = Couch.post(url, body: %{
-      selector: %{
+    selector = %{
         value: %{
           "$gte": 6,
           "$lt": 16
         }
-      },
-      r: 3
+      }
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 1
+    })
+
+    assert resp.status_code == 200
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 2
     })
 
     assert resp.status_code == 400
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 3
+    })
+
+    %{:body => %{"reason" => reason}} = resp
+    assert resp.status_code == 400
+    assert Regex.match?(~r/`r` value can only be r = 1 for partitions/, reason)
+  end
+
+  @tag :with_partitioned_db
+  test "partition database _explain query with r = 3 is rejected", context do
+    db_name = context[:db_name]
+    url = "/#{db_name}/_partition/foo/_explain"
+    selector = %{
+        value: %{
+          "$gte": 6,
+          "$lt": 16
+        }
+      }
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 1
+    })
+
+    assert resp.status_code == 200
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 2
+    })
+
+    assert resp.status_code == 400
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 3
+    })
+
+    %{:body => %{"reason" => reason}} = resp
+    assert resp.status_code == 400
+    assert Regex.match?(~r/`r` value can only be r = 1 for partitions/, reason)
   end
 
   @tag :with_db
   test "global db query with r = 3 is accepted", context do
     db_name = context[:db_name]
     url = "/#{db_name}/_find"
-    resp = Couch.post(url, body: %{
-      selector: %{
+    selector = %{
         value: %{
           "$gte": 6,
           "$lt": 16
         }
-      },
+      }
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 1
+    })
+
+    assert resp.status_code == 200
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 2
+    })
+
+    assert resp.status_code == 200
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
       r: 3
     })
 
     assert resp.status_code == 200
   end
 
-  # Todo:
-  # Add partition true/false to creating index
+  @tag :with_db
+  test "global db _explain query with r = 3 is accepted", context do
+    db_name = context[:db_name]
+    url = "/#{db_name}/_find"
+    selector = %{
+        value: %{
+          "$gte": 6,
+          "$lt": 16
+        }
+      }
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 1
+    })
+
+    assert resp.status_code == 200
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 2
+    })
+
+    assert resp.status_code == 200
+
+    resp = Couch.post(url, body: %{
+      selector: selector,
+      r: 3
+    })
+
+    assert resp.status_code == 200
+  end
 end

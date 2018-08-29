@@ -5,12 +5,12 @@ defmodule SearchPartitionTest do
   Test Partition functionality with search
   """
 
-  def create_docs(db_name) do
+  def create_docs(db_name, pk1 \\ "foo", pk2 \\ "bar") do
     docs = for i <- 1..10 do
       id = if rem(i, 2) == 0 do 
-        "foo:#{i}" 
+        "#{pk1}:#{i}" 
       else 
-        "bar:#{i}" 
+        "#{pk2}:#{i}" 
       end
       %{
         :_id => id,
@@ -23,9 +23,9 @@ defmodule SearchPartitionTest do
     assert resp.status_code == 201
   end
 
-  def create_ddoc(db_name) do
+  def create_ddoc(db_name, opts \\ %{}) do
     indexFn = "function(doc) {\n  if (doc.some) {\n    index('some', doc.some);\n }\n}"
-    ddoc = %{
+    default_ddoc = %{
       indexes: %{
         books: %{
           analyzer: %{name: "standard"},
@@ -33,6 +33,8 @@ defmodule SearchPartitionTest do
         }
       }
     } 
+
+    ddoc = Enum.into(opts, default_ddoc)
 
     resp = Couch.put("/#{db_name}/_design/library", body: ddoc)
     assert resp.status_code == 201
@@ -50,17 +52,30 @@ defmodule SearchPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/library/_search/books"
-    resp = Couch.get(url, query: %{q: "some:field", partition: "foo"})
+    url = "/#{db_name}/_partition/foo/_design/library/_search/books"
+    resp = Couch.get(url, query: %{q: "some:field"})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert ids == ["foo:10", "foo:2", "foo:4", "foo:6", "foo:8"]
 
-    url = "/#{db_name}/_design/library/_search/books"
-    resp = Couch.get(url, query: %{q: "some:field", partition: "bar"})
+    url = "/#{db_name}/_partition/bar/_design/library/_search/books"
+    resp = Couch.get(url, query: %{q: "some:field"})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert ids == ["bar:1", "bar:3", "bar:5", "bar:7", "bar:9"]
+  end
+
+  @tag :with_partitioned_db
+  test "Only returns docs in partition not those in shard", context do
+    db_name = context[:db_name]
+    create_docs(db_name, "foo", "bar42")
+    create_ddoc(db_name)
+
+    url = "/#{db_name}/_partition/foo/_design/library/_search/books"
+    resp = Couch.get(url, query: %{q: "some:field"})
+    assert resp.status_code == 200
+    ids = get_ids(resp)
+    assert ids == ["foo:10", "foo:2", "foo:4", "foo:6", "foo:8"]
   end
 
   @tag :with_partitioned_db
@@ -69,15 +84,15 @@ defmodule SearchPartitionTest do
     create_docs(db_name)
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/library/_search/books"
-    resp = Couch.get(url, query: %{q: "some:field", partition: "foo", limit: 3})
+    url = "/#{db_name}/_partition/foo/_design/library/_search/books"
+    resp = Couch.get(url, query: %{q: "some:field", limit: 3})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert ids == ["foo:10", "foo:2", "foo:4"] 
 
     %{:body => %{"bookmark" => bookmark}} = resp
     
-    resp = Couch.get(url, query: %{q: "some:field", partition: "foo", limit: 3, bookmark: bookmark})
+    resp = Couch.get(url, query: %{q: "some:field", limit: 3, bookmark: bookmark})
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert ids = ["foo:6", "foo:8"]
@@ -91,7 +106,18 @@ defmodule SearchPartitionTest do
 
     url = "/#{db_name}/_design/library/_search/books"
     resp = Couch.get(url, query: %{q: "some:field"})
-    assert resp.status_code != 200
+    assert resp.status_code == 400
+  end
+
+  @tag :with_partitioned_db
+  test "Cannot do partition query with global search ddoc", context do 
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name, options: %{partitioned: false})
+
+    url = "/#{db_name}/_partition/foo/_design/library/_search/books"
+    resp = Couch.get(url, query: %{q: "some:field"})
+    assert resp.status_code == 400
   end
 
   @tag :with_db
@@ -120,7 +146,7 @@ defmodule SearchPartitionTest do
         {:drilldown, "[\"key\",\"a\"]"}
       ], 
       fn ({key, value}) ->
-      url = "/#{db_name}/_design/library/_search/books"
+      url = "/#{db_name}/_partition/foo/_design/library/_search/books"
       query =  %{q: "some:field", partition: "foo"}
       query = Map.put(query, key, value)
       %{:body => body} = Couch.get(url, query: query)
