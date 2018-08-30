@@ -88,8 +88,8 @@ defmodule CrudPartitionTest do
     ]
 
     error = %{
-      error: "illegal_partition_key",
-      reason: "partition key must be specified",
+      "error" => "illegal_docid",
+      "reason" => "doc id must be of form partition:id"
     }
 
     url = "/#{db_name}"
@@ -106,8 +106,8 @@ defmodule CrudPartitionTest do
     ]
 
     error = %{
-      error: "illegal_partition_key",
-      reason: "partition keys must not begin with an underscore",
+      "error" => "illegal_docid", 
+      "reason" => "Only reserved document ids may start with underscore."
     }
 
     url = "/#{db_name}"

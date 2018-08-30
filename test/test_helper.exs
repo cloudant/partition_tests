@@ -1,6 +1,8 @@
 ExUnit.configure(exclude: [pending: true])
 ExUnit.start()
 
+Code.require_file "./support/partition_helpers.exs", __DIR__
+
 defmodule CouchTestCase do
   use ExUnit.Case
 

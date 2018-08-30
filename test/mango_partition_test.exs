@@ -1,35 +1,10 @@
 defmodule MangoPartitionTest do
   use CouchTestCase
+  import PartitionHelpers, except: [get_partitions: 1]
 
   @moduledoc """
   Test Partition functionality for mango
   """
-  def create_docs(db_name, pk1 \\ "foo", pk2 \\ "bar") do
-    docs = for i <- 1..100 do
-      id = if rem(i, 2) == 0 do
-        "#{pk1}:#{i}"
-      else
-        "#{pk2}:#{i}"
-      end
-
-      group = if rem(i, 3) == 0 do
-          "one"
-        else
-          "two"
-      end
-
-      %{
-        :_id => id,
-        :value => i,
-        :some => "field",
-        :group => group
-      }
-    end
-
-    resp = Couch.post("/#{db_name}/_bulk_docs", body: %{:docs => docs} )
-    assert resp.status_code == 201
-  end
-
   def create_index(db_name, fields \\ ["some"]) do
     resp = Couch.post("/#{db_name}/_index", body: %{
       index: %{
@@ -47,10 +22,6 @@ defmodule MangoPartitionTest do
       [partition, _] = String.split(doc["_id"], ":")
       partition
     end)
-  end
-
-  def assert_correct_partition(partitions, correct_partition) do
-    assert Enum.all?(partitions, fn (partition) -> partition == correct_partition end) == true
   end
 
   @tag :with_partitioned_db

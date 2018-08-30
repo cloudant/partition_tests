@@ -8,6 +8,9 @@ To run the suite:
 ./run
 ```
 
+`make couch` runs only the CouchDB tests
+`make all` runs all tests including the search tests
+
 ## Tips for test
 
 * `mix test` runs all the tests
@@ -17,4 +20,4 @@ To run the suite:
 # Tests to add
 
 * Responses for non-existent partitions are 404?
-* Replication tests 
+* Replication tests
