@@ -209,6 +209,7 @@ defmodule ViewPartitionTest do
     url = "/#{db_name}/_design/mrtest/_view/some"
 
     resp = Couch.post(url, body: %{keys: [2, 4, 6]})
+    IO.inspect resp
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 3

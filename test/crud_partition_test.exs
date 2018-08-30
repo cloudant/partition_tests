@@ -133,4 +133,64 @@ defmodule CrudPartitionTest do
     assert resp.status_code == 400
     assert Map.get(resp, :body) == error
   end
+
+  @tag :with_partitioned_db
+  test "saves attachment with partitioned doc", context do
+    db_name = context[:db_name]
+    id = "foo:doc-with-attachment"
+
+    doc = %{
+      _id: id,
+      _attachments: %{
+        "foo.txt": %{
+          content_type: "text/plain",
+          data: Base.encode64("This is a text document to save")
+        }
+      }
+    }
+    resp = Couch.put("/#{db_name}/#{id}", [body: doc])
+
+    assert resp.status_code == 201
+
+    resp = Couch.get("/#{db_name}/#{id}")
+    assert resp.status_code == 200
+    body = Map.get(resp, :body)
+    rev = Map.get(body, "_rev")
+
+    assert body["_attachments"] == %{
+      "foo.txt" => %{
+        "content_type" => "text/plain",
+        "digest" => "md5-OW2BoZAtMqs1E+fAnLpNBw==",
+        "length" => 31,
+        "revpos" => 1,
+        "stub" => true
+      }
+    }
+
+    resp = Couch.get("/#{db_name}/#{id}/foo.txt")
+    assert Map.get(resp, :body)  == "This is a text document to save"
+
+    resp = Couch.put("/#{db_name}/#{id}/bar.txt?rev=#{rev}",[
+      headers: ["Content-Type": "text/plain"],
+      body: "This is another document"
+    ])
+
+    assert resp.status_code == 200
+  end
+
+  test "Create database with bad `partitioned` value", context do
+    resp = Couch.put("/bad-db?partitioned=tru")
+    assert resp.status_code == 400
+    assert Map.get(resp, :body) == %{
+      "error" => "bad_request",
+      "reason" => "`partitioned` parameter can only be set to true."
+    }
+  end
+
+  test "Cannot create partitioned system db", context do
+    Couch.delete("/_replicator")
+
+    resp = Couch.put("/_replicator?partitioned=true")
+    assert resp.status_code == 400
+  end
 end
