@@ -192,5 +192,8 @@ defmodule CrudPartitionTest do
 
     resp = Couch.put("/_replicator?partitioned=true")
     assert resp.status_code == 400
+
+    %{:body => %{"reason" => reason}} = resp
+    assert Regex.match?(~r/Cannot partition a system database/, reason)
   end
 end
