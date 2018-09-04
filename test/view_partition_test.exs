@@ -209,7 +209,6 @@ defmodule ViewPartitionTest do
     url = "/#{db_name}/_design/mrtest/_view/some"
 
     resp = Couch.post(url, body: %{keys: [2, 4, 6]})
-    IO.inspect resp
     assert resp.status_code == 200
     ids = get_ids(resp)
     assert length(ids) == 3
@@ -333,7 +332,7 @@ defmodule ViewPartitionTest do
     })
     assert resp.status_code == 200
 
-    resp = Couch.put("/#{db_name}/foo:1", body: %{some: "field"})
+    Couch.put("/#{db_name}/foo:1", body: %{some: "field"})
 
     resp = Couch.get(url, query: %{
       update: "false",
@@ -358,16 +357,17 @@ defmodule ViewPartitionTest do
 
     assert resp.status_code == 200
     results = get_reduce_result(resp)
-    assert results ==  [%{"key" => ["field"], "value" => 50}]
+    assert results == [%{"key" => ["field"], "value" => 50}]
 
     resp = Couch.get(url, query: %{
       reduce: true,
       group_level: 2
     })
 
-    assert results = [
-      %{"key" => ["field", "one"], "value" => 33},
-      %{"key" => ["field", "two"], "value" => 67}
+    results = get_reduce_result(resp)
+    assert results == [
+      %{"key" => ["field", "one"], "value" => 16},
+      %{"key" => ["field", "two"], "value" => 34}
     ]
 
     resp = Couch.get(url, query: %{
@@ -375,9 +375,10 @@ defmodule ViewPartitionTest do
       group: true
     })
 
-    assert results = [
-      %{"key" => ["field", "one"], "value" => 33},
-      %{"key" => ["field", "two"], "value" => 67}
+    results = get_reduce_result(resp)
+    assert results == [
+      %{"key" => ["field", "one"], "value" => 16},
+      %{"key" => ["field", "two"], "value" => 34}
     ]
   end
 end

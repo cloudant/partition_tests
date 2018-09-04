@@ -1,6 +1,5 @@
 defmodule DesignDocPartitionTest do
   use CouchTestCase
-  import PartitionHelpers
 
   @moduledoc """
   Test Partition functionality for partition design docs

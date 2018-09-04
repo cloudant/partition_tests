@@ -175,10 +175,10 @@ defmodule CrudPartitionTest do
       body: "This is another document"
     ])
 
-    assert resp.status_code == 200
+    assert resp.status_code == 201
   end
 
-  test "Create database with bad `partitioned` value", context do
+  test "Create database with bad `partitioned` value", _context do
     resp = Couch.put("/bad-db?partitioned=tru")
     assert resp.status_code == 400
     assert Map.get(resp, :body) == %{
@@ -187,7 +187,7 @@ defmodule CrudPartitionTest do
     }
   end
 
-  test "Cannot create partitioned system db", context do
+  test "Cannot create partitioned system db", _context do
     Couch.delete("/_replicator")
 
     resp = Couch.put("/_replicator?partitioned=true")

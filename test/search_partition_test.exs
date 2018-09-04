@@ -95,7 +95,7 @@ defmodule SearchPartitionTest do
     resp = Couch.get(url, query: %{q: "some:field", limit: 3, bookmark: bookmark})
     assert resp.status_code == 200
     ids = get_ids(resp)
-    assert ids = ["foo:6", "foo:8"]
+    assert ids == ["foo:6", "foo:8"]
   end
 
   @tag :with_partitioned_db
@@ -134,7 +134,7 @@ defmodule SearchPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "All restricted paramters are not allowed", context do
+  test "All restricted parameters are not allowed", context do
     db_name = context[:db_name]
     create_docs(db_name)
     create_ddoc(db_name)
@@ -149,9 +149,9 @@ defmodule SearchPartitionTest do
       url = "/#{db_name}/_partition/foo/_design/library/_search/books"
       query =  %{q: "some:field", partition: "foo"}
       query = Map.put(query, key, value)
-      %{:body => body} = Couch.get(url, query: query)
-      assert body["error"] === "bad_request", "Failed for #{key}: #{value}"
-
+      resp = Couch.get(url, query: query)
+      %{:body => %{"reason" => reason}} = resp
+      assert Regex.match?(~r/is not allowed for a partition search/, reason)
     end)
   end
 
