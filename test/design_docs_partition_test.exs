@@ -18,14 +18,23 @@ defmodule DesignDocPartitionTest do
   test "cannot add following to partitioned design doc", context do
     db_name = context[:db_name]
 
+    fake_section = %{section: ""}
+
     Enum.each([
-      :rewrites, :lists, :shows, :updates, :filters, :validate_doc_update
-      ], fn (option) ->
+      {:shows, fake_section},
+      {:lists, fake_section},
+      {:rewrites, ""},
+      {:updates, fake_section},
+      {:filters, fake_section},
+      {:validate_doc_update, ""}
+      ], fn ({option, value}) ->
       ddoc = %{} 
-      ddoc = Map.put(ddoc, option, "this doesn't need to be valid js for the test")
+      ddoc = Map.put(ddoc, option, value)
 
       resp = Couch.put("/#{db_name}/_design/optionstest", body: ddoc)
       assert resp.status_code == 400
+      %{:body => %{"reason" => reason}} = resp
+      assert reason == "`#{option}` cannot be used in a partitioned design doc"
     end)
   end
 
