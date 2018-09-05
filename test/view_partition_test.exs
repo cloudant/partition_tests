@@ -138,17 +138,14 @@ defmodule ViewPartitionTest do
     db_name = context[:db_name]
     create_ddoc(db_name)
 
-    url = "/#{db_name}/_design/mrtest/_view/some"
-    resp = Couch.get(url, query: %{partition: "_bar"})
+    url = "/#{db_name}/_partition/_bar/_design/mrtest/_view/some"
+    resp = Couch.get(url)
     assert resp.status_code == 400
 
     url = "/#{db_name}/_partition//_design/mrtest/_view/some"
-    resp = Couch.get(url, query: %{partition: ""})
+    resp = Couch.get(url)
     assert resp.status_code == 400
 
-    url = "/#{db_name}/_partition/%20/_design/mrtest/_view/some"
-    resp = Couch.get(url, query: %{partition: "%20"})
-    assert resp.status_code == 400
   end
 
   @tag :with_partitioned_db
