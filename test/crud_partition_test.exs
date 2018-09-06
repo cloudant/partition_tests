@@ -36,6 +36,38 @@ defmodule CrudPartitionTest do
   end
 
   @tag :with_partitioned_db
+  test "PUT fails for partitions with _", context do
+    db_name = context[:db_name]
+    id = "_bad:partitioned"
+    url = "/#{db_name}/#{id}"
+
+    resp = Couch.put(url, body: %{partitioned_doc: false})
+
+    error = %{
+      "error" => "illegal_docid",
+      "reason" => "Only reserved document ids may start with underscore."
+    }
+    assert resp.status_code == 400
+    assert Map.get(resp, :body) == error
+  end
+
+  @tag :with_partitioned_db
+  test "PUT fails for bad partitions", context do
+    db_name = context[:db_name]
+    id = "bad:"
+    url = "/#{db_name}/#{id}"
+
+    resp = Couch.put(url, body: %{partitioned_doc: false})
+
+    error = %{
+      "error" => "illegal_docid",
+      "reason" => "doc id must be of form partition:id"
+    }
+    assert resp.status_code == 400
+    assert Map.get(resp, :body) == error
+  end
+
+  @tag :with_partitioned_db
   test "POST and GET document", context do
     db_name = context[:db_name]
     id = "my-partition-post:doc"
@@ -49,6 +81,63 @@ defmodule CrudPartitionTest do
 
     %{body: doc} = resp
     assert doc["_id"] == id
+  end
+
+  @tag :with_partitioned_db
+  test "POST and _bulk_get document", context do
+    db_name = context[:db_name]
+    id = "my-partition-post:doc"
+    url = "/#{db_name}"
+
+    resp = Couch.post(url, body: %{_id: id, partitioned_doc: true})
+    assert resp.status_code == 201
+
+    resp = Couch.post("#{url}/_bulk_get", body: %{docs: [%{id: id}]})
+    assert resp.status_code == 200
+
+    %{body: body} = resp
+
+    assert %{
+      "results" => [
+        %{
+          "docs" => [
+            %{
+              "ok" => %{
+                "_id" => "my-partition-post:doc",
+                "_rev" => "1-43d86359741cb629c0953a2beb6e9d7a",
+                "partitioned_doc" => true
+              }
+            }
+          ],
+          "id" => "my-partition-post:doc"
+        }
+      ]
+    } == body
+  end
+
+  @tag :with_partitioned_db
+  test "_bulk_get bad partitioned document", context do
+    db_name = context[:db_name]
+    id = "my-partition-post"
+    url = "/#{db_name}"
+
+    resp = Couch.post("#{url}/_bulk_get", body: %{docs: [%{id: id}]})
+    assert resp.status_code == 200
+    %{:body => body} = resp
+
+    assert %{"results" => [
+      %{"docs" => [
+        %{"error" =>
+          %{
+            "error" => "illegal_docid", 
+            "id" => "my-partition-post", 
+            "reason" => "doc id must be of form partition:id",
+            "rev" => :null
+            }
+        }
+      ],
+        "id" => "my-partition-post"
+      }]} == body
   end
 
   @tag :with_partitioned_db
@@ -124,8 +213,8 @@ defmodule CrudPartitionTest do
     ]
 
     error = %{
-      error: "illegal_doc_key",
-      reason: "document key must be specified",
+      "error" => "illegal_docid",
+      "reason" => "doc id must be of form partition:id",
     }
 
     url = "/#{db_name}"

@@ -135,13 +135,28 @@ defmodule MangoPartitionTest do
       selector: %{
         some: "field"
       },
+      skip: 40,
       limit: 5
     })
 
     assert resp.status_code == 200
     partitions = get_partitions(resp)
     assert length(partitions) == 5
-    assert partitions == ["bar", "foo", "bar", "foo", "bar"]
+    assert partitions == ["bar", "bar", "bar", "bar", "bar"]
+
+    url = "/#{db_name}/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        some: "field"
+      },
+      skip: 50,
+      limit: 5
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 5
+    assert partitions == ["foo", "foo", "foo", "foo", "foo"]
   end
 
   @tag :with_partitioned_db
