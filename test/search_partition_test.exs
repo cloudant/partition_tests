@@ -107,6 +107,8 @@ defmodule SearchPartitionTest do
     url = "/#{db_name}/_design/library/_search/books"
     resp = Couch.get(url, query: %{q: "some:field"})
     assert resp.status_code == 400
+    %{:body => %{"reason" => reason}} = resp
+    assert reason == "`partition` parameter is not supported in this search."
   end
 
   @tag :with_partitioned_db
@@ -118,6 +120,8 @@ defmodule SearchPartitionTest do
     url = "/#{db_name}/_partition/foo/_design/library/_search/books"
     resp = Couch.get(url, query: %{q: "some:field"})
     assert resp.status_code == 400
+    %{:body => %{"reason" => reason}} = resp
+    assert reason == "partition query is not supported in this design doc."
   end
 
   @tag :with_db
