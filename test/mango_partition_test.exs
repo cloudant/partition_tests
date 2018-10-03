@@ -328,7 +328,7 @@ defmodule MangoPartitionTest do
     %{:body => body} = resp
 
     assert body["index"]["name"] == "_all_docs"
-    assert body["mrargs"]["extra"]["partition"] == "foo"
+    assert body["mrargs"]["partition"] == "foo"
 
     url = "/#{db_name}/_partition/bar/_explain"
     resp = Couch.post(url, body: %{
@@ -340,7 +340,7 @@ defmodule MangoPartitionTest do
     %{:body => body} = resp
 
     assert body["index"]["def"] == %{"fields" => [%{"some" => "asc"}]}
-    assert body["mrargs"]["extra"]["partition"] == "bar"
+    assert body["mrargs"]["partition"] == "bar"
   end
 
   @tag :with_db
@@ -362,7 +362,7 @@ defmodule MangoPartitionTest do
     %{:body => body} = resp
 
     assert body["index"]["name"] == "_all_docs"
-    assert Map.has_key?(body["mrargs"]["extra"], "partition") == false
+    assert body["mrargs"]["partition"] == :null
 
     resp = Couch.post(url, body: %{
       selector: %{
@@ -373,7 +373,7 @@ defmodule MangoPartitionTest do
     %{:body => body} = resp
 
     assert body["index"]["def"] == %{"fields" => [%{"some" => "asc"}]}
-    assert Map.has_key?(body["mrargs"]["extra"], "partition") == false
+    assert body["mrargs"]["partition"] == :null
   end
 
   @tag :with_partitioned_db
