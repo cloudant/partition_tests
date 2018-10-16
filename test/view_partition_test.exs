@@ -94,6 +94,17 @@ defmodule ViewPartitionTest do
   end
 
   @tag :with_partitioned_db
+  test "query will return zero results for wrong inputs", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_ddoc(db_name)
+
+    url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
+    resp = Couch.get(url, query: %{start_key: "\"foo:12\""})
+    assert resp.status_code == 200
+  end
+
+  @tag :with_partitioned_db
   test "partitioned ddoc cannot be used in global query", context do
     db_name = context[:db_name]
     create_docs(db_name)

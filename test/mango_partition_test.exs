@@ -28,6 +28,80 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
+  test "query using _id and partition field works for global and local query", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_index(db_name)
+
+    url = "/#{db_name}/_partition/foo/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        "_id": %{
+          "$gt": "foo:"
+        }
+      },
+      limit: 20
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 20
+    assert_correct_partition(partitions, "foo")
+
+    url = "/#{db_name}/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        "_id": %{
+          "$lt": "foo:"
+        }
+      },
+      limit: 20
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 20
+    assert_correct_partition(partitions, "bar")
+  end
+
+  @tag :with_partitioned_db
+  test "query using _id works for global and local query", context do
+    db_name = context[:db_name]
+    create_docs(db_name)
+    create_index(db_name)
+
+    url = "/#{db_name}/_partition/foo/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        "_id": %{
+          "$gt": 0
+        }
+      },
+      limit: 20
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 20
+    assert_correct_partition(partitions, "foo")
+
+    url = "/#{db_name}/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        "_id": %{
+          "$gt": 0
+        }
+      },
+      limit: 20
+    })
+
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 20
+    assert_correct_partition(partitions, "bar")
+  end
+
+  @tag :with_partitioned_db
   test "query with partitioned:true using index and $eq", context do
     db_name = context[:db_name]
     create_docs(db_name)
@@ -46,18 +120,18 @@ defmodule MangoPartitionTest do
     assert length(partitions) == 20
     assert_correct_partition(partitions, "foo")
 
-    url = "/#{db_name}/_partition/bar/_find"
-    resp = Couch.post(url, body: %{
-      selector: %{
-        some: "field"
-      },
-      limit: 20
-    })
+    # url = "/#{db_name}/_partition/bar/_find"
+    # resp = Couch.post(url, body: %{
+    #   selector: %{
+    #     some: "field"
+    #   },
+    #   limit: 20
+    # })
 
-    assert resp.status_code == 200
-    partitions = get_partitions(resp)
-    assert length(partitions) == 20
-    assert_correct_partition(partitions, "bar")
+    # assert resp.status_code == 200
+    # partitions = get_partitions(resp)
+    # assert length(partitions) == 20
+    # assert_correct_partition(partitions, "bar")
   end
 
   @tag :with_partitioned_db
@@ -427,7 +501,8 @@ defmodule MangoPartitionTest do
     selector = %{
       selector: %{
         some: "field"
-      }
+      },
+      limit: 100
     }
 
     resp = Couch.post(url, body: selector)
@@ -454,7 +529,8 @@ defmodule MangoPartitionTest do
     selector = %{
       selector: %{
         some: "field"
-      }
+      },
+      limit: 100
     }
 
     resp = Couch.post(url, body: selector)
@@ -480,7 +556,8 @@ defmodule MangoPartitionTest do
     selector = %{
       selector: %{
         some: "field"
-      }
+      },
+      limit: 50
     }
 
     resp = Couch.post(url, body: selector)
