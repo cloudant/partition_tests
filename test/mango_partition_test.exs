@@ -120,18 +120,18 @@ defmodule MangoPartitionTest do
     assert length(partitions) == 20
     assert_correct_partition(partitions, "foo")
 
-    # url = "/#{db_name}/_partition/bar/_find"
-    # resp = Couch.post(url, body: %{
-    #   selector: %{
-    #     some: "field"
-    #   },
-    #   limit: 20
-    # })
+    url = "/#{db_name}/_partition/bar/_find"
+    resp = Couch.post(url, body: %{
+      selector: %{
+        some: "field"
+      },
+      limit: 20
+    })
 
-    # assert resp.status_code == 200
-    # partitions = get_partitions(resp)
-    # assert length(partitions) == 20
-    # assert_correct_partition(partitions, "bar")
+    assert resp.status_code == 200
+    partitions = get_partitions(resp)
+    assert length(partitions) == 20
+    assert_correct_partition(partitions, "bar")
   end
 
   @tag :with_partitioned_db
@@ -597,7 +597,9 @@ defmodule MangoPartitionTest do
       r: 2
     })
 
+    %{:body => %{"reason" => reason}} = resp
     assert resp.status_code == 400
+    assert Regex.match?(~r/`r` value can only be r = 1 for partitions/, reason)
 
     resp = Couch.post(url, body: %{
       selector: selector,
@@ -632,7 +634,9 @@ defmodule MangoPartitionTest do
       r: 2
     })
 
+    %{:body => %{"reason" => reason}} = resp
     assert resp.status_code == 400
+    assert Regex.match?(~r/`r` value can only be r = 1 for partitions/, reason)
 
     resp = Couch.post(url, body: %{
       selector: selector,
@@ -646,6 +650,12 @@ defmodule MangoPartitionTest do
 
   @tag :with_db
   test "global db query with r = 3 is accepted", context do
+    expected_resp = %{
+      "bookmark" => "nil",
+      "docs" => [],
+      "warning" => "no matching index found, create an index to optimize query time"
+    }
+
     db_name = context[:db_name]
     url = "/#{db_name}/_find"
     selector = %{
@@ -661,6 +671,7 @@ defmodule MangoPartitionTest do
     })
 
     assert resp.status_code == 200
+    assert Map.get(resp, :body) == expected_resp
 
     resp = Couch.post(url, body: %{
       selector: selector,
@@ -668,6 +679,7 @@ defmodule MangoPartitionTest do
     })
 
     assert resp.status_code == 200
+    assert Map.get(resp, :body) == expected_resp
 
     resp = Couch.post(url, body: %{
       selector: selector,
@@ -675,12 +687,13 @@ defmodule MangoPartitionTest do
     })
 
     assert resp.status_code == 200
+    assert Map.get(resp, :body) == expected_resp
   end
 
   @tag :with_db
   test "global db _explain query with r = 3 is accepted", context do
     db_name = context[:db_name]
-    url = "/#{db_name}/_find"
+    url = "/#{db_name}/_explain"
     selector = %{
         value: %{
           "$gte": 6,
@@ -694,6 +707,7 @@ defmodule MangoPartitionTest do
     })
 
     assert resp.status_code == 200
+    assert Map.get(resp, :body)["fields"] == "all_fields"
 
     resp = Couch.post(url, body: %{
       selector: selector,
@@ -701,6 +715,7 @@ defmodule MangoPartitionTest do
     })
 
     assert resp.status_code == 200
+    assert Map.get(resp, :body)["fields"] == "all_fields"
 
     resp = Couch.post(url, body: %{
       selector: selector,
@@ -708,5 +723,6 @@ defmodule MangoPartitionTest do
     })
 
     assert resp.status_code == 200
+    assert Map.get(resp, :body)["fields"] == "all_fields"
   end
 end

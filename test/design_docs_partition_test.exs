@@ -54,6 +54,13 @@ defmodule DesignDocPartitionTest do
     } 
 
     resp = Couch.put("/#{db_name}/_design/mrtest", body: ddoc)
+
+    error = %{
+      "error" => "invalid_design_doc",
+      "reason" => "Javascript reduces not supported in partitioned view."
+    }
+
     assert resp.status_code == 400
+    assert Map.get(resp, :body) == error
   end
 end

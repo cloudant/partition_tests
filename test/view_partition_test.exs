@@ -102,6 +102,7 @@ defmodule ViewPartitionTest do
     url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
     resp = Couch.get(url, query: %{start_key: "\"foo:12\""})
     assert resp.status_code == 200
+    assert Map.get(resp, :body)["rows"] == []
   end
 
   @tag :with_partitioned_db
@@ -237,20 +238,6 @@ defmodule ViewPartitionTest do
     assert length(partitions) == 5
     assert_correct_partition(partitions, "foo")
   end
-
-  # @tag :with_partitioned_db
-  # test "partition query with partition in query string fails", context do
-  #   db_name = context[:db_name]
-  #   create_docs(db_name)
-  #   create_ddoc(db_name)
-
-  #   url = "/#{db_name}/_partition/foo/_design/mrtest/_view/some"
-  #   resp = Couch.get(url, query: %{partition: "foo"})
-  #   %{:body => %{"reason" => reason}} = resp
-
-  #   assert resp.status_code == 400
-  #   assert Regex.match?(~r/not allowed in the query string/, reason)
-  # end
 
   @tag :with_partitioned_db
   test "partition query with descending", context do

@@ -16,7 +16,9 @@ defmodule CrudPartitionTest do
     url = "/#{db_name}/#{id}"
 
     resp = Couch.put(url, body: %{partitioned_doc: true})
+    %{body: doc} = resp
     assert resp.status_code == 201
+    assert doc["id"] == id
 
     resp = Couch.get(url)
     assert resp.status_code == 200
@@ -33,6 +35,11 @@ defmodule CrudPartitionTest do
 
     resp = Couch.put(url, body: %{partitioned_doc: false})
     assert resp.status_code == 400
+    error = %{
+      "error" => "illegal_docid",
+      "reason" => "doc id must be of form partition:id"
+    }
+    assert Map.get(resp, :body) == error
   end
 
   @tag :with_partitioned_db
@@ -265,6 +272,9 @@ defmodule CrudPartitionTest do
     ])
 
     assert resp.status_code == 201
+    %{:body => body} = resp 
+    assert body["ok"] == true
+    assert body["id"] == id
   end
 
   test "Create database with bad `partitioned` value", _context do
