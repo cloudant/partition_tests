@@ -135,6 +135,7 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
+  @tag :revisit
   test "partition query with partition in body returns 400", context do
     db_name = context[:db_name]
 
@@ -153,6 +154,7 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
+  @tag :revisit
   test "global query with partition in body returns 400", context do
     db_name = context[:db_name]
 
@@ -575,6 +577,8 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
+  @tag :showroom
+  @tag :skip
   test "partition database query with r = 3 is rejected", context do
     db_name = context[:db_name]
     url = "/#{db_name}/_partition/foo/_find"
@@ -612,6 +616,8 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
+  @tag :showroom
+  @tag :skip
   test "partition database _explain query with r = 3 is rejected", context do
     db_name = context[:db_name]
     url = "/#{db_name}/_partition/foo/_explain"

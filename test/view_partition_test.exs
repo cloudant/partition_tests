@@ -161,6 +161,8 @@ defmodule ViewPartitionTest do
   end
 
   @tag :with_partitioned_db
+  @tag :showroom
+  @tag :skip
   test "partitioned query errors if restricted params used", context do
     db_name = context[:db_name]
     create_ddoc(db_name)
