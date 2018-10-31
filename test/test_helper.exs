@@ -1,4 +1,4 @@
-ExUnit.configure(exclude: [pending: true])
+ExUnit.configure(exclude: [pending: true, revisit: true], seed: 0)
 ExUnit.start()
 
 Code.require_file "./support/partition_helpers.exs", __DIR__
