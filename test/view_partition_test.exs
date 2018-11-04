@@ -1,7 +1,7 @@
 defmodule ViewPartitionTest do
   use CouchTestCase
   import PartitionHelpers
-  
+
   @moduledoc """
   Test Partition functionality for views
   """

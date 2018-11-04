@@ -68,7 +68,7 @@ defmodule CrudPartitionTest do
 
     error = %{
       "error" => "illegal_docid",
-      "reason" => "doc id must be of form partition:id"
+      "reason" => "Document id must not be empty"
     }
     assert resp.status_code == 400
     assert Map.get(resp, :body) == error
@@ -136,9 +136,9 @@ defmodule CrudPartitionTest do
       %{"docs" => [
         %{"error" =>
           %{
-            "error" => "illegal_docid", 
-            "id" => "my-partition-post", 
-            "reason" => "doc id must be of form partition:id",
+            "error" => "illegal_docid",
+            "id" => "my-partition-post",
+            "reason" => "Document id must contain a partition",
             "rev" => :null
             }
         }
@@ -185,7 +185,7 @@ defmodule CrudPartitionTest do
 
     error = %{
       "error" => "illegal_docid",
-      "reason" => "doc id must be of form partition:id"
+      "reason" => "Document id must contain a partition"
     }
 
     url = "/#{db_name}"
@@ -202,7 +202,7 @@ defmodule CrudPartitionTest do
     ]
 
     error = %{
-      "error" => "illegal_docid", 
+      "error" => "illegal_docid",
       "reason" => "Only reserved document ids may start with underscore."
     }
 
@@ -221,7 +221,7 @@ defmodule CrudPartitionTest do
 
     error = %{
       "error" => "illegal_docid",
-      "reason" => "doc id must be of form partition:id",
+      "reason" => "Document id must not be empty",
     }
 
     url = "/#{db_name}"
@@ -282,7 +282,7 @@ defmodule CrudPartitionTest do
     assert resp.status_code == 400
     assert Map.get(resp, :body) == %{
       "error" => "bad_request",
-      "reason" => "`partitioned` parameter can only be set to true."
+      "reason" => "Invalid `partitioned` parameter"
     }
   end
 

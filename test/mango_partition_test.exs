@@ -273,7 +273,7 @@ defmodule MangoPartitionTest do
     partitions = get_partitions(resp)
     assert length(partitions) == 5
     assert_correct_partition(partitions, "bar")
-  end 
+  end
 
   @tag :with_partitioned_db
   test "partitioned database query using index and range scan all docs on same shard", context do
@@ -310,7 +310,7 @@ defmodule MangoPartitionTest do
     partitions = get_partitions(resp)
     assert length(partitions) == 5
     assert_correct_partition(partitions, "bar42")
-  end 
+  end
 
   @tag :with_partitioned_db
   test "partitioned database query using _all_docs and range scan", context do

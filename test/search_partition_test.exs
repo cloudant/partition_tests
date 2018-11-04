@@ -7,10 +7,10 @@ defmodule SearchPartitionTest do
 
   def create_docs(db_name, pk1 \\ "foo", pk2 \\ "bar") do
     docs = for i <- 1..10 do
-      id = if rem(i, 2) == 0 do 
-        "#{pk1}:#{i}" 
-      else 
-        "#{pk2}:#{i}" 
+      id = if rem(i, 2) == 0 do
+        "#{pk1}:#{i}"
+      else
+        "#{pk2}:#{i}"
       end
       %{
         :_id => id,
@@ -32,7 +32,7 @@ defmodule SearchPartitionTest do
           index: indexFn
         }
       }
-    } 
+    }
 
     ddoc = Enum.into(opts, default_ddoc)
 
@@ -88,10 +88,10 @@ defmodule SearchPartitionTest do
     resp = Couch.get(url, query: %{q: "some:field", limit: 3})
     assert resp.status_code == 200
     ids = get_ids(resp)
-    assert ids == ["foo:10", "foo:2", "foo:4"] 
+    assert ids == ["foo:10", "foo:2", "foo:4"]
 
     %{:body => %{"bookmark" => bookmark}} = resp
-    
+
     resp = Couch.get(url, query: %{q: "some:field", limit: 3, bookmark: bookmark})
     assert resp.status_code == 200
     ids = get_ids(resp)
@@ -99,7 +99,8 @@ defmodule SearchPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "Cannot do global query with partition view", context do 
+  @tag :revisit
+  test "Cannot do global query with partition view", context do
     db_name = context[:db_name]
     create_docs(db_name)
     create_ddoc(db_name)
@@ -112,7 +113,8 @@ defmodule SearchPartitionTest do
   end
 
   @tag :with_partitioned_db
-  test "Cannot do partition query with global search ddoc", context do 
+  @tag :revisit
+  test "Cannot do partition query with global search ddoc", context do
     db_name = context[:db_name]
     create_docs(db_name)
     create_ddoc(db_name, options: %{partitioned: false})
@@ -138,17 +140,19 @@ defmodule SearchPartitionTest do
   end
 
   @tag :with_partitioned_db
+  @tag :showroom
+  @tag :skip
   test "All restricted parameters are not allowed", context do
     db_name = context[:db_name]
     create_docs(db_name)
     create_ddoc(db_name)
     Enum.each([
-        {:include_docs, true}, 
+        {:include_docs, true},
         {:counts, "[\"type\"]"},
         {:group_field, "some"},
         {:ranges, :jiffy.encode(%{price: %{cheap: "[0 TO 100]"}})},
         {:drilldown, "[\"key\",\"a\"]"}
-      ], 
+      ],
       fn ({key, value}) ->
       url = "/#{db_name}/_partition/foo/_design/library/_search/books"
       query =  %{q: "some:field", partition: "foo"}

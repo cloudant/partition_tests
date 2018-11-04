@@ -15,6 +15,8 @@ defmodule DesignDocPartitionTest do
   end
 
   @tag :with_partitioned_db
+  @tag :showroom
+  @tag :skip
   test "cannot add following to partitioned design doc", context do
     db_name = context[:db_name]
 
@@ -28,7 +30,7 @@ defmodule DesignDocPartitionTest do
       {:filters, fake_section},
       {:validate_doc_update, ""}
       ], fn ({option, value}) ->
-      ddoc = %{} 
+      ddoc = %{}
       ddoc = Map.put(ddoc, option, value)
 
       resp = Couch.put("/#{db_name}/_design/optionstest", body: ddoc)
@@ -38,8 +40,10 @@ defmodule DesignDocPartitionTest do
     end)
   end
 
-  
+
   @tag :with_partitioned_db
+  @tag :showroom
+  @tag :skip
   test "cannot add a js reduce to a partitioned design doc", context do
     db_name = context[:db_name]
     mapFn = "function(doc) {\n  if (doc.some) {\n    emit(doc._id, doc.some);\n }\n}"
@@ -51,7 +55,7 @@ defmodule DesignDocPartitionTest do
           reduce: reduceFn
         }
       }
-    } 
+    }
 
     resp = Couch.put("/#{db_name}/_design/mrtest", body: ddoc)
 
