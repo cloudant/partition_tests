@@ -140,8 +140,6 @@ defmodule SearchPartitionTest do
   end
 
   @tag :with_partitioned_db
-  @tag :showroom
-  @tag :skip
   test "All restricted parameters are not allowed", context do
     db_name = context[:db_name]
     create_docs(db_name)
@@ -159,7 +157,7 @@ defmodule SearchPartitionTest do
       query = Map.put(query, key, value)
       resp = Couch.get(url, query: query)
       %{:body => %{"reason" => reason}} = resp
-      assert Regex.match?(~r/is not allowed for a partition search/, reason)
+      assert Regex.match?(~r/is not supported on this search index/, reason)
     end)
   end
 

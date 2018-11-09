@@ -179,7 +179,7 @@ defmodule ViewPartitionTest do
       resp = Couch.get(url, query: query)
       %{:body => body} = resp
       assert(resp.status_code == 400, "Failure for #{key}=#{value} #{body["error"]} #{body["reason"]}")
-      assert body["reason"] === "`#{key}=true` is not supported in this view."
+      assert body["reason"] === "`#{key}=true` is not supported on this view."
     end)
   end
 

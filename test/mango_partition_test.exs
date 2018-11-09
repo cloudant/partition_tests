@@ -577,8 +577,6 @@ defmodule MangoPartitionTest do
   end
 
   @tag :with_partitioned_db
-  @tag :showroom
-  @tag :skip
   test "partition database query with r = 3 is rejected", context do
     db_name = context[:db_name]
     url = "/#{db_name}/_partition/foo/_find"
@@ -612,12 +610,10 @@ defmodule MangoPartitionTest do
 
     %{:body => %{"reason" => reason}} = resp
     assert resp.status_code == 400
-    assert Regex.match?(~r/`r` value can only be r = 1 for partitions/, reason)
+    assert Regex.match?(~r/`r` can not be modified for partitioned requests/, reason)
   end
 
   @tag :with_partitioned_db
-  @tag :showroom
-  @tag :skip
   test "partition database _explain query with r = 3 is rejected", context do
     db_name = context[:db_name]
     url = "/#{db_name}/_partition/foo/_explain"
@@ -651,7 +647,7 @@ defmodule MangoPartitionTest do
 
     %{:body => %{"reason" => reason}} = resp
     assert resp.status_code == 400
-    assert Regex.match?(~r/`r` value can only be r = 1 for partitions/, reason)
+    assert Regex.match?(~r/`r` can not be modified for partitioned requests/, reason)
   end
 
   @tag :with_db

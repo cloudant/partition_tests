@@ -15,8 +15,6 @@ defmodule DesignDocPartitionTest do
   end
 
   @tag :with_partitioned_db
-  @tag :showroom
-  @tag :skip
   test "cannot add following to partitioned design doc", context do
     db_name = context[:db_name]
 
@@ -42,8 +40,6 @@ defmodule DesignDocPartitionTest do
 
 
   @tag :with_partitioned_db
-  @tag :showroom
-  @tag :skip
   test "cannot add a js reduce to a partitioned design doc", context do
     db_name = context[:db_name]
     mapFn = "function(doc) {\n  if (doc.some) {\n    emit(doc._id, doc.some);\n }\n}"
